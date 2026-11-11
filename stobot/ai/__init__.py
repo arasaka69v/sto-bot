@@ -1,0 +1,15 @@
+"""Выбор распознавателя: с ключом ИИ — словарь + Claude, без ключа — только словарь."""
+
+from __future__ import annotations
+
+from stobot.ai.base import PartRecognizer
+
+
+def create_recognizer(api_key: str, model: str) -> PartRecognizer:
+    if api_key:
+        from stobot.ai.claude import ClaudeRecognizer
+
+        return ClaudeRecognizer(api_key, model)
+    from stobot.ai.dictionary import DictionaryRecognizer
+
+    return DictionaryRecognizer()
