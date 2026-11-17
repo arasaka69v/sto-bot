@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 
@@ -12,7 +13,9 @@ from stobot.core.app import BotApp
 from stobot.logging_setup import setup_logging
 from stobot.storage.db import connect
 from stobot.suppliers import create_supplier
+from stobot.suppliers.base import SupplierError
 from stobot.suppliers.rossko import RosskoNotReady
+from stobot.suppliers.rossko_soap import RosskoAuthError
 
 
 def main() -> int:
@@ -29,11 +32,21 @@ def main() -> int:
 
     # 3. Поставщик
     try:
-        supplier = create_supplier(settings.supplier)
+        supplier = create_supplier(settings.supplier, settings.rossko)
     except RosskoNotReady as e:
         log.error(str(e))
         print(f"❌ {e}")
         return 1
+    if settings.supplier == "rossko":
+        # Проверяем ключи сразу, чтобы ошибку увидели вы, а не мастер
+        try:
+            asyncio.run(supplier.verify())  # type: ignore[attr-defined]
+            print("✅ Росско: ключи приняты")
+        except RosskoAuthError as e:
+            print(f"❌ Росско не принял ключи: {e}. Запустите rossko_setup.bat")
+            return 1
+        except SupplierError as e:
+            print(f"⚠️ Росско сейчас не отвечает ({e}). Бот запустится, поиск заработает позже.")
 
     # 4. Остальные части
     conn = connect(settings.db_path)

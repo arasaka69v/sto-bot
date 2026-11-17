@@ -163,9 +163,20 @@ class CheckoutService:
             self.sessions.unmark_checkout(session_id)
             raise
 
+        # Поставщик мог принять заказ частично: отклонённые позиции остаются в корзине
+        rejected = {(brand.upper(), article.upper()) for brand, article, _ in placed.rejected}
+        accepted = [
+            (c, line)
+            for c, line in zip(to_order, lines, strict=True)
+            if (line.offer.brand.upper(), line.offer.article.upper()) not in rejected
+        ]
+        lines = [line for _, line in accepted]
+        total = sum((ln.offer.price * ln.qty for ln in lines), Decimal(0))
+
         order_id = self.orders.save(self.supplier.name, placed, lines, total, admin.id)
-        # Из корзины убираем только то, что заказали. То, чего нет в наличии, остаётся.
-        self.cart.remove_many([c.item.id for c in to_order])
+        # Из корзины убираем только то, что заказали. Чего нет в наличии или что
+        # поставщик отклонил — остаётся, чтобы не потерялось.
+        self.cart.remove_many([c.item.id for c, _ in accepted])
         log.info(
             "ORDER sent: local_id=%s supplier_id=%s total=%s lines=%d",
             order_id,

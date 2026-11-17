@@ -40,6 +40,48 @@ def _parse_bool(raw: str, name: str) -> bool:
 
 
 @dataclass(frozen=True)
+class RosskoConfig:
+    """Параметры бизнес-аккаунта Росско. Заполняются мастером настройки rossko_setup."""
+
+    key1: str = ""
+    key2: str = ""
+    delivery_id: str = ""  # способ доставки (обязателен для поиска и заказа)
+    address_id: int | None = None  # адрес доставки (если нужен для способа доставки)
+    payment_id: int | None = None  # способ оплаты
+    requisite_id: int | None = None  # юрлицо/реквизиты для оплаты (если есть)
+    contact_name: str = ""
+    contact_phone: str = ""
+    delivery_parts: bool = False  # поле delivery_parts из API (уточните у менеджера)
+
+    def missing_for_search(self) -> list[str]:
+        names = {
+            "ROSSKO_KEY1": self.key1,
+            "ROSSKO_KEY2": self.key2,
+            "ROSSKO_DELIVERY_ID": self.delivery_id,
+        }
+        return [k for k, v in names.items() if not v]
+
+    def missing_for_order(self) -> list[str]:
+        missing = self.missing_for_search()
+        if self.payment_id is None:
+            missing.append("ROSSKO_PAYMENT_ID")
+        if not self.contact_name:
+            missing.append("ROSSKO_CONTACT_NAME")
+        if not self.contact_phone:
+            missing.append("ROSSKO_CONTACT_PHONE")
+        return missing
+
+
+def _optional_int(raw: str, name: str) -> int | None:
+    raw = raw.strip()
+    if not raw:
+        return None
+    if not raw.lstrip("-").isdigit():
+        raise ConfigError(f"{name}: нужно число, а указано «{raw}»")
+    return int(raw)
+
+
+@dataclass(frozen=True)
 class Settings:
     telegram_token: str
     admin_ids: frozenset[int]
@@ -52,6 +94,7 @@ class Settings:
     currency: str = "₸"
     db_path: Path = Path("data/sto_bot.db")
     log_path: Path = Path("data/logs/bot.log")
+    rossko: RosskoConfig = field(default_factory=RosskoConfig, repr=False)
     # Значения, которые нельзя писать в логи (заполняется автоматически)
     secrets: tuple[str, ...] = field(default=(), repr=False)
 
@@ -90,6 +133,23 @@ def load_settings(env_file: str | None = ".env", require_token: bool = True) -> 
         raise ConfigError(f"NORMAL_DELIVERY_DAYS: нужно целое число дней, а указано «{days_raw}»")
 
     api_key = env("ANTHROPIC_API_KEY")
+    rossko = RosskoConfig(
+        key1=env("ROSSKO_KEY1"),
+        key2=env("ROSSKO_KEY2"),
+        delivery_id=env("ROSSKO_DELIVERY_ID"),
+        address_id=_optional_int(env("ROSSKO_ADDRESS_ID"), "ROSSKO_ADDRESS_ID"),
+        payment_id=_optional_int(env("ROSSKO_PAYMENT_ID"), "ROSSKO_PAYMENT_ID"),
+        requisite_id=_optional_int(env("ROSSKO_REQUISITE_ID"), "ROSSKO_REQUISITE_ID"),
+        contact_name=env("ROSSKO_CONTACT_NAME"),
+        contact_phone=env("ROSSKO_CONTACT_PHONE"),
+        delivery_parts=_parse_bool(env("ROSSKO_DELIVERY_PARTS", "false"), "ROSSKO_DELIVERY_PARTS"),
+    )
+    if supplier == "rossko" and rossko.missing_for_search():
+        raise ConfigError(
+            "Не заполнены настройки Росско: "
+            + ", ".join(rossko.missing_for_search())
+            + ". Запустите rossko_setup.bat — он всё заполнит сам."
+        )
     return Settings(
         telegram_token=token,
         admin_ids=admin_ids,
@@ -102,5 +162,6 @@ def load_settings(env_file: str | None = ".env", require_token: bool = True) -> 
         currency=env("CURRENCY_SYMBOL", "₸") or "₸",
         db_path=Path(env("DB_PATH", "data/sto_bot.db")),
         log_path=Path(env("LOG_PATH", "data/logs/bot.log")),
-        secrets=tuple(s for s in (token, api_key) if s),
+        rossko=rossko,
+        secrets=tuple(s for s in (token, api_key, rossko.key1, rossko.key2) if s),
     )

@@ -84,11 +84,11 @@ def test_vin_validation(app):
     assert app.cars.get(car.id).vin == "JTNB11HK103456789"
 
 
-def test_rossko_without_docs_gives_clear_error():
+def test_rossko_without_settings_gives_clear_error():
     import pytest
 
     from stobot.suppliers import create_supplier
     from stobot.suppliers.rossko import RosskoNotReady
 
-    with pytest.raises(RosskoNotReady, match="docs/"):
+    with pytest.raises(RosskoNotReady, match="rossko_setup"):
         create_supplier("rossko")

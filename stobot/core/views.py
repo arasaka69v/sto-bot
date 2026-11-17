@@ -69,6 +69,10 @@ def search_reply(
         lines.append(f"💰 <b>{money(offer.price, currency)}</b> · {stock}")
         if offer.promo:
             lines.append(f"🔥 {esc(offer.promo)}")
+        if offer.multiplicity > 1:
+            lines.append(f"📦 продаётся по {offer.multiplicity} шт")
+        if offer.note:
+            lines.append(f"ℹ️ {esc(offer.note)}")
         lines.append("")
         if offer.stock > 0:
             buttons.append([Button(f"🛒 В корзину №{n} — {offer.brand}", f"add:{snap_id}")])
@@ -211,6 +215,12 @@ def confirm_reply(result: ConfirmResult, currency: str) -> Reply:
         "",
         f"<b>Сумма: {money(result.total, currency)}</b>",
     ]
+    if placed.rejected:
+        text += ["", "⚠️ Поставщик НЕ принял (остались в корзине):"]
+        text += [
+            f"• <b>{esc(brand)}</b> {esc(article)} — {esc(reason)}"
+            for brand, article, reason in placed.rejected
+        ]
     if skipped:
         text += ["", "Остались в корзине (не было в наличии):", *skipped]
     return Reply("\n".join(text), edit=True)

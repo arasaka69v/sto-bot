@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?><wsdl:definitions targetNamespace="https://api.rossko.ru/"
+                  xmlns:http="http://schemas.xmlsoap.org/wsdl/http/"
+                  xmlns:tns="https://api.rossko.ru/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:s="http://www.w3.org/2001/XMLSchema"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+    <wsdl:types>
+        <s:schema elementFormDefault="qualified" targetNamespace="https://api.rossko.ru/">
+            <s:element name="GetDeliveryDetails">
+                <s:complexType>
+                    <s:sequence>
+                        <s:element minOccurs="1" maxOccurs="1" name="KEY1" type="s:string"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="KEY2" type="s:string"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="date" type="s:date"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="address_id" type="s:int"/>
+                    </s:sequence>
+                </s:complexType>
+            </s:element>
+            <s:element name="GetDeliveryDetailsResponse">
+            <s:complexType>
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="1" name="DeliveryDetailsResult" type="tns:DeliveryDetailsResult"/>
+                </s:sequence>
+            </s:complexType>
+            </s:element>
+            <s:complexType name="DeliveryDetailsResult">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="success" type="s:boolean"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="message" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="Deliveries" nillable="true" type="tns:ArrayOfTypeDeliveries"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfTypeDeliveries">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="Delivery" nillable="true" type="tns:Delivery"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="Delivery">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="id" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="name" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="Wave" nillable="true" type="tns:Wave"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="Wave">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="deliveryStart" type="s:dateTime"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="deliveryEnd" type="s:dateTime"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="timeLimit" type="s:dateTime"/>
+                </s:sequence>
+            </s:complexType>
+        </s:schema>
+    </wsdl:types>
+    <wsdl:message name="GetDeliveryDetailsSoapIn">
+        <wsdl:part name="parameters" element="tns:GetDeliveryDetails"/>
+    </wsdl:message>
+    <wsdl:message name="GetDeliveryDetailsSoapOut">
+        <wsdl:part name="parameters" element="tns:GetDeliveryDetailsResponse"/>
+    </wsdl:message>
+    <wsdl:portType name="DeliveryDetailsSoap">
+        <wsdl:operation name="GetDeliveryDetails">
+            <wsdl:input message="tns:GetDeliveryDetailsSoapIn"/>
+            <wsdl:output message="tns:GetDeliveryDetailsSoapOut"/>
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="DeliveryDetailsSoap" type="tns:DeliveryDetailsSoap">
+        <soap:binding transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="GetDeliveryDetails">
+            <soap:operation soapAction="https://api.rossko.ru/service/v2.1/GetDeliveryDetails" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="DeliveryDetails">
+        <wsdl:port name="DeliveryDetailsSoap" binding="tns:DeliveryDetailsSoap">
+            <soap:address location="https://api.rossko.ru/service/v2.1/GetDeliveryDetails"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>

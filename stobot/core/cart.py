@@ -32,11 +32,17 @@ class CartService:
         """Добавляет позицию. Если та же деталь для той же машины уже есть — +qty.
 
         Количество не может быть больше, чем есть на складе (если склад известен).
+        Если деталь продаётся по N штук (кратность), qty — это число «упаковок».
         """
+        step = max(offer.multiplicity, 1)
         existing = self.repo.find_same(offer, car_id)
-        wanted = (existing.qty if existing else 0) + qty
-        allowed = min(wanted, offer.stock) if offer.stock > 0 else wanted
+        wanted = (existing.qty if existing else 0) + qty * step
+        allowed = wanted
+        if offer.stock > 0 and wanted > offer.stock:
+            allowed = offer.stock - offer.stock % step  # столько, сколько есть, кратно step
         limited = allowed < wanted
+        if allowed <= 0:
+            allowed = step  # пусть поставщик сам скажет при проверке, хватит ли
 
         if existing:
             self.repo.set_qty(existing.id, allowed)
@@ -48,7 +54,7 @@ class CartService:
         return AddResult(item=item, merged=existing is not None, limited_by_stock=limited)
 
     def change_qty(self, item_id: int, delta: int) -> tuple[CartItem | None, str | None]:
-        """Меняет количество на delta (+1 / -1).
+        """Меняет количество на delta (+1 / -1) «шагов» (шаг = кратность детали).
 
         Возвращает (позиция или None если удалена, подсказка для мастера или None).
         Количество 0 — позиция удаляется.
@@ -56,7 +62,7 @@ class CartService:
         item = self.repo.get(item_id)
         if item is None:
             return None, "Этой позиции уже нет в корзине."
-        new_qty = item.qty + delta
+        new_qty = item.qty + delta * max(item.offer.multiplicity, 1)
         if new_qty <= 0:
             self.repo.remove(item_id)
             return None, "Позиция удалена."

@@ -35,6 +35,8 @@ class Offer:
     delivery_days: int
     is_original: bool = False
     promo: str | None = None  # текст акции — ТОЛЬКО если его вернул поставщик
+    multiplicity: int = 1  # кратность: продаётся по N штук (например, комплектом по 2)
+    note: str | None = None  # примечание склада от поставщика (как есть)
 
     def to_dict(self) -> dict:
         data = asdict(self)
@@ -129,6 +131,8 @@ class PlacedOrder:
 
     supplier_order_id: str
     status: str
+    # Позиции, которые поставщик НЕ принял: (бренд, артикул, причина от поставщика)
+    rejected: tuple[tuple[str, str, str], ...] = ()
 
 
 @dataclass

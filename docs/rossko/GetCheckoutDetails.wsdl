@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?><wsdl:definitions targetNamespace="https://api.rossko.ru/"
+                  xmlns:http="http://schemas.xmlsoap.org/wsdl/http/"
+                  xmlns:tns="https://api.rossko.ru/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:s="http://www.w3.org/2001/XMLSchema"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+    <wsdl:types>
+        <s:schema elementFormDefault="qualified" targetNamespace="https://api.rossko.ru/">
+            <s:element name="GetCheckoutDetails">
+                <s:complexType>
+                    <s:sequence>
+                        <s:element minOccurs="1" maxOccurs="1" name="KEY1" type="s:string"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="KEY2" type="s:string"/>
+                    </s:sequence>
+                </s:complexType>
+            </s:element>
+            <s:element name="GetCheckoutDetailsResponse">
+            <s:complexType>
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="1" name="CheckoutDetailsResult" type="tns:CheckoutDetailsResult"/>
+                </s:sequence>
+            </s:complexType>
+            </s:element>
+            <s:complexType name="CheckoutDetailsResult">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="success" type="s:boolean"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="message" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="DeliveryType" nillable="true" type="tns:ArrayOfTypeDelivery"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="PaymentType" nillable="true" type="tns:ArrayOfTypePayment"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="DeliveryAddress" nillable="true" type="tns:ArrayOfAddressDelivery"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="CompanyList" nillable="true" type="tns:ArrayOfCompanyList"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfTypeDelivery">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="delivery" nillable="true" type="tns:Delivery"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="Delivery">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="id" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="name" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfTypePayment">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="payment" nillable="true" type="tns:Payment"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="Payment">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="id" type="s:int"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="name" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfAddressDelivery">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="address" nillable="true" type="tns:Address"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="Address">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="1" name="id" nillable="true" type="s:int"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="city" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="street" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="house" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="office" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="Delivery" nillable="true" type="tns:ArrayOfDelivery"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfDelivery">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="ids" nillable="true" type="tns:DeliveryIds"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="DeliveryIds">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="id" nillable="true" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfCompanyList">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="company" nillable="true" type="tns:Company"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="Company">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="1" name="id" nillable="true" type="s:int"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="name" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="requisite" nillable="true" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+        </s:schema>
+    </wsdl:types>
+    <wsdl:message name="GetCheckoutDetailsSoapIn">
+        <wsdl:part name="parameters" element="tns:GetCheckoutDetails"/>
+    </wsdl:message>
+    <wsdl:message name="GetCheckoutDetailsSoapOut">
+        <wsdl:part name="parameters" element="tns:GetCheckoutDetailsResponse"/>
+    </wsdl:message>
+    <wsdl:portType name="CheckoutDetailsSoap">
+        <wsdl:operation name="GetCheckoutDetails">
+            <wsdl:input message="tns:GetCheckoutDetailsSoapIn"/>
+            <wsdl:output message="tns:GetCheckoutDetailsSoapOut"/>
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="CheckoutDetailsSoap" type="tns:CheckoutDetailsSoap">
+        <soap:binding transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="GetCheckoutDetails">
+            <soap:operation soapAction="https://api.rossko.ru/service/v2.1/GetCheckoutDetails" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="CheckoutDetails">
+        <wsdl:port name="CheckoutDetailsSoap" binding="tns:CheckoutDetailsSoap">
+            <soap:address location="https://api.rossko.ru/service/v2.1/GetCheckoutDetails"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>

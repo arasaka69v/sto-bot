@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?><wsdl:definitions targetNamespace="https://api.rossko.ru/"
+                  xmlns:http="http://schemas.xmlsoap.org/wsdl/http/"
+                  xmlns:tns="https://api.rossko.ru/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:s="http://www.w3.org/2001/XMLSchema"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+    <wsdl:types>
+        <s:schema elementFormDefault="qualified" targetNamespace="https://api.rossko.ru/">
+            <s:element name="GetCheckout">
+                <s:complexType>
+                    <s:sequence>
+                        <s:element minOccurs="1" maxOccurs="1" name="KEY1" type="s:string"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="KEY2" type="s:string"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="delivery" type="tns:ArrayOfDelivery"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="payment" type="tns:ArrayOfPayment"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="contact" type="tns:ArrayOfContact"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="delivery_parts" type="s:boolean"/>
+                        <s:element minOccurs="1" maxOccurs="1" name="PARTS" type="tns:ArrayOfParts"/>
+                    </s:sequence>
+                </s:complexType>
+            </s:element>
+            <s:complexType name="ArrayOfDelivery">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="delivery_id" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="address_id" nillable="true" type="s:int"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfPayment">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="payment_id" type="s:int"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="requisite_id" nillable="true" type="s:int"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfContact">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="name" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="phone" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="comment" nillable="true" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfParts">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="Part" nillable="true" type="tns:Part"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="Part">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="partnumber" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="brand" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="stock" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="count" type="s:int"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="comment" nillable="true" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+            <s:element name="GetCheckoutResponse">
+                <s:complexType>
+                    <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="1" name="CheckoutResult" type="tns:CheckoutResult"/>
+                    </s:sequence>
+                </s:complexType>
+            </s:element>
+            <s:complexType name="CheckoutResult">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="success" type="s:boolean"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="message" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="OrderIDS" nillable="true" type="tns:ArrayOfOrderIDS"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="DeliveryCost" nillable="true" type="tns:ArrayOfDeliveryCost"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="comment" nillable="true" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="ItemsList" nillable="true" type="tns:ArrayOfItems"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="ItemsErrorList" nillable="true" type="tns:ArrayOfItemsError"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfOrderIDS">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="id" nillable="true" type="s:int"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfDeliveryCost">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="cost" nillable="true" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfItems">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="Item" nillable="true" type="tns:Item"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="Item">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="partnumber" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="brand" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="count" type="s:int"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="price" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="total_price" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="stock" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="delivery" type="s:int"/>
+                    <s:element minOccurs="0" maxOccurs="1" nillable="true" name="deliveryStart" type="s:dateTime"/>
+                    <s:element minOccurs="0" maxOccurs="1" nillable="true" name="deliveryEnd" type="s:dateTime"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="comment" nillable="true" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="order_id" type="s:int"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="extra" type="s:int"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="description" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="stock_address" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ArrayOfItemsError">
+                <s:sequence>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="ItemError" nillable="true" type="tns:ItemError"/>
+                </s:sequence>
+            </s:complexType>
+            <s:complexType name="ItemError">
+                <s:sequence>
+                    <s:element minOccurs="1" maxOccurs="1" name="partnumber" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="brand" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="count" type="s:int"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="stock" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="1" name="comment" nillable="true" type="s:string"/>
+                    <s:element minOccurs="1" maxOccurs="1" name="message" type="s:string"/>
+                </s:sequence>
+            </s:complexType>
+        </s:schema>
+    </wsdl:types>
+    <wsdl:message name="GetCheckoutSoapIn">
+        <wsdl:part name="parameters" element="tns:GetCheckout"/>
+    </wsdl:message>
+    <wsdl:message name="GetCheckoutSoapOut">
+        <wsdl:part name="parameters" element="tns:GetCheckoutResponse"/>
+    </wsdl:message>
+    <wsdl:portType name="CheckoutSoap">
+        <wsdl:operation name="GetCheckout">
+            <wsdl:input message="tns:GetCheckoutSoapIn"/>
+            <wsdl:output message="tns:GetCheckoutSoapOut"/>
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="CheckoutSoap" type="tns:CheckoutSoap">
+        <soap:binding transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="GetCheckout">
+            <soap:operation soapAction="https://api.rossko.ru/service/v2.1/GetCheckout" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="Checkout">
+        <wsdl:port name="CheckoutSoap" binding="tns:CheckoutSoap">
+            <soap:address location="https://api.rossko.ru/service/v2.1/GetCheckout"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>

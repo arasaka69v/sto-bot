@@ -84,6 +84,13 @@ class SearchService:
         article = article.strip()
         log.info("search article=%s", article)
         offers = await self.supplier.search(article)
+        if not any(o.stock > 0 for o in offers) and self.supplier.supports_analogs:
+            # Самой детали нет в наличии — сразу покажем её вместе с аналогами,
+            # чтобы мастеру не пришлось нажимать ещё одну кнопку
+            analogs = await self.supplier.analogs(article, "")
+            if analogs:
+                unique = {o.offer_id: o for o in [*offers, *analogs]}
+                return self._result(article, list(unique.values()), is_analogs=True)
         return self._result(article, offers, is_analogs=False)
 
     async def analogs(self, article: str, brand: str) -> SearchResult:

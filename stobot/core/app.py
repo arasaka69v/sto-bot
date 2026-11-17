@@ -107,6 +107,10 @@ class BotApp:
         except SupplierUnavailable:
             log.warning("supplier unavailable", exc_info=True)
             return Response.text(texts.SUPPLIER_DOWN)
+        except SupplierError as e:
+            # Например, Росско перестал принимать ключи
+            log.error("supplier error: %s", e)
+            return Response.text(texts.SUPPLIER_ERROR.format(reason=texts.esc(str(e))))
 
     # ================================================================
     #  Текст
@@ -413,7 +417,8 @@ class BotApp:
         reply = Reply(text, [[Button("🛒 Открыть корзину", "cart")]])
         # Сообщаем админам (кроме того, кто добавил)
         note = Reply(
-            f"🛒 {texts.esc(user.name)} добавил(а): {views.offer_line(offer)} × 1\n"
+            f"🛒 {texts.esc(user.name)} добавил(а): {views.offer_line(offer)}"
+            f" × {max(offer.multiplicity, 1)}\n"
             f"{views.car_line(car)}",
             [[Button("Открыть корзину", "cart")]],
         )

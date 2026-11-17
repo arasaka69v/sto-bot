@@ -54,6 +54,7 @@ if errorlevel 1 goto need_token
 
 echo.
 echo ===== Готово! =====
+echo Если есть ключи Росско - запустите rossko_setup.bat
 echo Запускайте бота файлом start.bat
 echo.
 pause
