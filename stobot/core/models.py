@@ -48,18 +48,28 @@ class Offer:
         return cls(**data)
 
 
+def car_title(model: str | None, plate: str | None, vin: str | None) -> str:
+    """Как машина называется в сообщениях: «Toyota 123ABC01» или «Toyota VIN …456789»."""
+    parts = [model] if model else []
+    if plate:
+        parts.append(plate)
+    elif vin:
+        parts.append(f"VIN …{vin[-6:]}")
+    return " ".join(parts) or "машина"
+
+
 @dataclass(frozen=True)
 class Car:
     id: int
-    plate: str  # госномер, например 123ABC01
-    model: str  # например «Камри»
-    vin: str | None = None
+    vin: str | None = None  # главное: по VIN каталог подберёт детали
+    plate: str | None = None  # госномер, например 123ABC01 (необязательно)
+    model: str = ""  # «Toyota» (определили по VIN) или то, что указал мастер
     engine: str | None = None
     year: int | None = None
 
     @property
     def title(self) -> str:
-        return f"{self.model} {self.plate}".strip()
+        return car_title(self.model, self.plate, self.vin)
 
 
 @dataclass(frozen=True)

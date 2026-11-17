@@ -98,3 +98,11 @@ def test_state_roundtrip():
     state = clarify.start("cv_joint", {"side": "left"}, None, {})
     again = clarify.ClarifyState.from_dict(state.to_dict())
     assert again == state
+
+
+def test_vin_known_skips_car_questions():
+    car = Car(id=1, vin="JTNB11HK103456789", model="Toyota")
+    state = clarify.start("engine_mount", {}, car, {}, vin_known=True)
+    assert state.ask == ["mount_position"]  # КПП знает каталог по VIN
+    state = clarify.start("oil_filter", {}, car, {}, vin_known=True)
+    assert state.done

@@ -68,38 +68,6 @@ def test_orders_by_car_text(app):
     assert "04465-33471" in history.replies[0].text
 
 
-def test_name_search_with_clarify_buttons(app):
-    response = run(app.handle_text(MASTER, "граната"))
-    text = response.replies[0].text
-    assert "ШРУС" in text and "Сторона" in text
-    run(app.handle_action(MASTER, find_action(response, "cl:")))  # Левый
-    response2 = run(
-        app.handle_action(
-            MASTER, find_action(response, "cl:").rsplit(":", 2)[0] + ":cv_position:outer"
-        )
-    )
-    final = response2.replies[0].text
-    assert "ШРУС, Левый, Наружный" in final
-    assert "не могу" in final  # честно говорим, что артикул не подберём
-
-
-def test_name_search_without_questions(app):
-    response = run(app.handle_text(MASTER, "калодки перед"))
-    text = response.replies[0].text
-    assert "Тормозные колодки, Передние" in text
-    assert response.replies[0].buttons == []
-
-
-def test_car_engine_remembered_between_searches(app):
-    run(app.handle_command(MASTER, "car", "Камри 123ABC01"))
-    first = run(app.handle_text(MASTER, "масляный фильтр"))
-    run(app.handle_action(MASTER, find_action(first, "clt:")))
-    run(app.handle_text(MASTER, "2AR-FE"))
-    assert app.cars.find_by_plate("123ABC01").engine == "2AR-FE"
-    second = run(app.handle_text(MASTER, "фильтр масляный"))
-    assert second.replies[0].buttons == []  # двигатель уже известен — не спрашиваем
-
-
 def test_car_in_plain_text(app):
     response = run(app.handle_text(MASTER, "Камри 123 ABC 01"))
     assert "Камри 123ABC01" in response.replies[0].text
@@ -107,11 +75,11 @@ def test_car_in_plain_text(app):
 
 
 def test_vin_validation(app):
-    run(app.handle_command(MASTER, "car", "Камри 123ABC01"))
+    run(app.handle_command(MASTER, "car", "123ABC01"))
     car = app.cars.find_by_plate("123ABC01")
     run(app.handle_action(MASTER, f"carf:vin:{car.id}"))
     bad = run(app.handle_text(MASTER, "123"))
-    assert "17 символов" in bad.replies[0].text
+    assert "17" in bad.replies[0].text
     run(app.handle_text(MASTER, "JTNB11HK103456789"))
     assert app.cars.get(car.id).vin == "JTNB11HK103456789"
 

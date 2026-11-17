@@ -247,24 +247,28 @@ def orders_reply(orders: list[Order], currency: str, car: Car | None = None) -> 
 def car_reply(car: Car, answers: dict[str, str], is_current: bool) -> Reply:
     status = " — <b>текущая</b>" if is_current else ""
     lines = [f"🚗 <b>{esc(car.title)}</b>{status}", ""]
-    lines.append(f"VIN: {esc(car.vin) or '—'}")
-    lines.append(f"Двигатель: {esc(car.engine) or '—'}")
-    lines.append(f"Год: {car.year or '—'}")
+    lines.append(f"VIN: <code>{esc(car.vin)}</code>" if car.vin else "VIN: —")
+    # Необязательные поля показываем, только если они заполнены — меньше лишнего
+    if car.plate:
+        lines.append(f"Госномер: {esc(car.plate)}")
+    if car.engine:
+        lines.append(f"Двигатель: {esc(car.engine)}")
+    if car.year:
+        lines.append(f"Год: {car.year}")
     for key, value in answers.items():
         if key in QUESTIONS:
             lines.append(f"{QUESTIONS[key].title}: {esc(QUESTIONS[key].label(value))}")
     if is_current:
         lines.append("\nВсё, что вы добавите в корзину, привяжется к этой машине.")
-    buttons = [
-        [
-            Button("✏️ VIN", f"carf:vin:{car.id}"),
-            Button("✏️ Двигатель", f"carf:engine:{car.id}"),
-            Button("✏️ Год", f"carf:year:{car.id}"),
-        ],
+    edit_row = [] if car.vin else [Button("✏️ Указать VIN", f"carf:vin:{car.id}")]
+    if not car.plate:
+        edit_row.append(Button("✏️ Госномер", f"carf:plate:{car.id}"))
+    buttons = [edit_row] if edit_row else []
+    buttons.append(
         [Button("🚫 Отвязать машину", "car:off")]
         if is_current
-        else [Button("✅ Сделать текущей", f"car:{car.id}")],
-    ]
+        else [Button("✅ Сделать текущей", f"car:{car.id}")]
+    )
     return Reply("\n".join(lines), buttons)
 
 
@@ -300,21 +304,41 @@ def clarify_reply(
     return Reply("\n".join(lines), buttons, edit=edit)
 
 
-def clarify_done_reply(
-    state: ClarifyState, car: Car | None, has_car_questions: bool, edit: bool = False
-) -> Reply:
+def _part_summary(part_key: str, answers: dict[str, str]) -> str:
+    """«Тормозные колодки, Передние»."""
+    return ClarifyState(part_key=part_key, car_id=None, answers=answers).summary()
+
+
+def no_catalog_reply(part_key: str, answers: dict[str, str], car: Car | None) -> Reply:
+    """Каталога по VIN ещё нет: честно говорим и просим артикул. Ничего не спрашиваем."""
+    lines = [f"🔧 Понял: <b>{esc(_part_summary(part_key, answers))}</b>"]
+    if car:
+        lines.append(car_line(car))
+    lines += [
+        "",
+        "📖 Подобрать артикул по названию пока не могу — каталог по VIN ещё не подключён.",
+        "Пришлите <b>артикул</b> (с коробки, со старой детали или из каталога) — "
+        "найду цену и наличие.",
+    ]
+    return Reply("\n".join(lines))
+
+
+def ask_vin_text(part_key: str) -> str:
+    title = _part_summary(part_key, {})
+    return (
+        f"🔧 Понял: <b>{esc(title)}</b>\n\n"
+        "Пришлите <b>VIN</b> машины (17 символов) — подберу деталь по нему.\n"
+        "Или пришлите артикул, если он есть."
+    )
+
+
+def catalog_not_found_reply(state: ClarifyState, car: Car | None, edit: bool = False) -> Reply:
     lines = [f"🔧 <b>{esc(state.summary())}</b>"]
     if car:
         lines.append(car_line(car))
     lines += [
         "",
-        "📖 Подобрать артикул по названию пока не могу — каталога по VIN ещё нет.",
-        "Пришлите <b>артикул</b> (с коробки, со старой детали или из каталога) — "
-        "найду цену и наличие.",
+        "📖 Каталог не нашёл эту деталь для этой машины.",
+        "Пришлите <b>артикул</b>, если он есть, — найду цену и наличие.",
     ]
-    if has_car_questions and car is None:
-        lines.append(
-            "\n💡 Привяжите машину (<code>/car Камри 123ABC01</code>) — "
-            "бот запомнит двигатель и КПП и больше не будет спрашивать."
-        )
     return Reply("\n".join(lines), edit=edit)

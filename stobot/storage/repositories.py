@@ -9,7 +9,15 @@ import json
 import sqlite3
 from decimal import Decimal
 
-from stobot.core.models import Car, CartItem, Offer, Order, OrderLine, PlacedOrder
+from stobot.core.models import (
+    Car,
+    CartItem,
+    Offer,
+    Order,
+    OrderLine,
+    PlacedOrder,
+    car_title,
+)
 
 
 def normalize_plate(plate: str) -> str:
@@ -45,6 +53,22 @@ class CarRepo:
         ).fetchone()
         return _row_to_car(row)
 
+    def find_by_vin(self, vin: str) -> Car | None:
+        row = self.conn.execute("SELECT * FROM cars WHERE vin = ?", (vin,)).fetchone()
+        return _row_to_car(row)
+
+    def find(self, text: str) -> Car | None:
+        """Ищет машину по VIN или по госномеру."""
+        return self.find_by_vin(normalize_plate(text)) or self.find_by_plate(text)
+
+    def get_or_create_by_vin(self, vin: str, model: str) -> Car:
+        existing = self.find_by_vin(vin)
+        if existing:
+            return existing
+        cur = self.conn.execute("INSERT INTO cars (vin, model) VALUES (?, ?)", (vin, model))
+        self.conn.commit()
+        return self.get(cur.lastrowid)  # type: ignore[arg-type,return-value]
+
     def create_or_update(self, plate: str, model: str) -> Car:
         plate = normalize_plate(plate)
         existing = self.find_by_plate(plate)
@@ -58,8 +82,12 @@ class CarRepo:
         return self.get(cur.lastrowid)  # type: ignore[arg-type,return-value]
 
     def update_field(self, car_id: int, field: str, value: str | int | None) -> None:
-        if field not in ("vin", "engine", "year", "model"):
+        """Меняет поле машины. Если такой VIN или номер уже у другой машины —
+        sqlite3.IntegrityError (обрабатывается в app.py)."""
+        if field not in ("vin", "plate", "engine", "year", "model"):
             raise ValueError(f"Нельзя менять поле {field}")
+        if field == "plate" and isinstance(value, str):
+            value = normalize_plate(value)
         self.conn.execute(f"UPDATE cars SET {field} = ? WHERE id = ?", (value, car_id))
         self.conn.commit()
 
@@ -296,7 +324,7 @@ class OrderRepo:
 
     def _lines(self, order_id: int, car_id: int | None = None) -> list[dict]:
         sql = (
-            "SELECT ol.*, c.plate, c.model FROM order_lines ol"
+            "SELECT ol.*, c.plate, c.model, c.vin FROM order_lines ol"
             " LEFT JOIN cars c ON c.id = ol.car_id WHERE ol.order_id = ?"
         )
         params: list = [order_id]
@@ -309,7 +337,9 @@ class OrderRepo:
                 {
                     "offer": Offer.from_dict(json.loads(row["offer_json"])),
                     "qty": row["qty"],
-                    "car": f"{row['model']} {row['plate']}".strip() if row["plate"] else None,
+                    "car": (
+                        car_title(row["model"], row["plate"], row["vin"]) if row["car_id"] else None
+                    ),
                 }
             )
         return result

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from stobot.core.vin import is_vin, normalize_vin
 from stobot.storage.repositories import normalize_plate
 
 # Современный казахстанский номер: 123ABC01 (3 цифры, 2–3 буквы, 2 цифры региона)
@@ -61,9 +62,11 @@ _ORDERS_FOR_CAR_RE = re.compile(r"заказ\w*\s+(?:для|на|по)?\s*(.+)$"
 
 
 def parse_orders_query(text: str) -> str | None:
-    """«что заказывали для 123ABC01» -> '123ABC01'."""
+    """«что заказывали для 123ABC01» -> '123ABC01' (или VIN, если указан VIN)."""
     match = _ORDERS_FOR_CAR_RE.search(text.strip().rstrip("?"))
     if not match:
         return None
+    if is_vin(match.group(1)):
+        return normalize_vin(match.group(1))
     parsed = parse_car_args(match.group(1))
     return parsed[1] if parsed else None

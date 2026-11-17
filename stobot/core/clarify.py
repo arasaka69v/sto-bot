@@ -3,7 +3,8 @@
 Правила:
 1. Спрашиваем только то, что есть в списке вопросов детали (без чего не подобрать).
 2. Не спрашиваем то, что уже известно: из текста мастера, из машины
-   (двигатель) или из прошлых ответов по этой машине (КПП).
+   (двигатель), из прошлых ответов по этой машине (КПП) или из VIN
+   (если подключён каталог — он сам знает двигатель и КПП по VIN).
 3. Если у вопроса всего один вариант ответа — не спрашиваем, берём его.
 4. Все вопросы — одним сообщением с кнопками (это делает app.py).
 """
@@ -33,11 +34,17 @@ def known_answers(
     return known
 
 
-def questions_to_ask(part: PartType, known: dict[str, str]) -> list[Question]:
+def questions_to_ask(
+    part: PartType, known: dict[str, str], vin_known: bool = False
+) -> list[Question]:
+    """Какие вопросы задать. vin_known=True — у машины есть VIN, и каталог сам
+    знает двигатель и КПП, поэтому вопросы «про машину» не задаём."""
     result = []
     for key in part.questions:
         question = QUESTIONS[key]
         if key in known:
+            continue
+        if vin_known and question.scope == "car":
             continue
         if len(question.options) == 1:
             continue  # единственный вариант — спрашивать нечего
@@ -97,12 +104,16 @@ class ClarifyState:
 
 
 def start(
-    part_key: str, text_answers: dict[str, str], car: Car | None, car_answers: dict[str, str]
+    part_key: str,
+    text_answers: dict[str, str],
+    car: Car | None,
+    car_answers: dict[str, str],
+    vin_known: bool = False,
 ) -> ClarifyState:
     """Начало уточнения: определяем, что ещё нужно спросить."""
     part = PARTS[part_key]
     known = auto_answers(part) | known_answers(part, text_answers, car, car_answers)
-    ask = [q.key for q in questions_to_ask(part, known)]
+    ask = [q.key for q in questions_to_ask(part, known, vin_known)]
     return ClarifyState(part_key=part_key, car_id=car.id if car else None, answers=known, ask=ask)
 
 

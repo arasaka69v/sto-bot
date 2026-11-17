@@ -22,6 +22,7 @@ from stobot.core.models import Car, User
 from stobot.core.parts import QUESTIONS
 from stobot.core.replies import Button, Notification, Reply, Response
 from stobot.core.search import SearchResult, SearchService, looks_like_article
+from stobot.core.vin import is_vin, make_from_vin, normalize_vin
 from stobot.storage.repositories import (
     CarRepo,
     CartRepo,
@@ -120,37 +121,60 @@ class BotApp:
         if pending:
             return await self._handle_pending(user, pending, text)
 
-        # 2. «что заказывали для 123ABC01»
-        plate = car_parsing.parse_orders_query(text)
-        if plate:
-            return await self._orders_command(user, plate)
+        # 2. «что заказывали для 123ABC01» (или для VIN)
+        car_key = car_parsing.parse_orders_query(text)
+        if car_key:
+            return await self._orders_command(user, car_key)
 
-        # 3. Артикул
+        # 3. VIN — выбираем машину (проверяем до артикула: VIN тоже похож на артикул)
+        if is_vin(text):
+            return self._select_vin(user, text)
+
+        # 4. Артикул
         if looks_like_article(text):
             return await self._search_article(user, text)
 
-        # 4. «Камри 123ABC01» — привязка машины
+        # 5. «Камри 123ABC01» — привязка машины по номеру
         car_args = car_parsing.parse_car_in_text(text)
         if car_args:
             return await self._car_command(user, text)
 
-        # 5. Название детали
+        # 6. Название детали
         return await self._search_by_name(user, text)
 
     async def _handle_pending(self, user: User, pending: str, text: str) -> Response:
         self.state.set_pending(user.id, None)
         kind, *rest = pending.split(":")
 
+        if kind == "needvin":  # needvin:<сессия> — ждём VIN, чтобы продолжить поиск детали
+            if not is_vin(text):
+                return await self._route_text(user, text)  # мастер передумал — обычный текст
+            car = self._select_car_by_vin(user, text)
+            return await self._continue_with_vin(user, int(rest[0]), car)
+
         if kind == "car":  # car:<поле>:<id машины>
             field, car_id = rest[0], int(rest[1])
             value: str | int | None = text.strip()
             if field == "vin":
-                value = str(value).upper().replace(" ", "")
-                if len(value) != 17:
+                value = normalize_vin(str(value))
+                if not is_vin(value):
                     self.state.set_pending(user.id, pending)
                     return Response.text(
-                        f"В VIN должно быть 17 символов, а здесь {len(value)}. "
-                        "Пришлите ещё раз или /cancel."
+                        f"Это не похоже на VIN: нужно 17 латинских букв и цифр, "
+                        f"а здесь {len(value)}. Пришлите ещё раз или /cancel."
+                    )
+                other = self.cars.find_by_vin(value)
+                if other and other.id != car_id:
+                    # Такая машина уже есть — просто выбираем её
+                    self.state.set_current_car(user.id, other.id)
+                    return self._car_card(user, other.id, prefix="Эта машина уже есть в базе.\n\n")
+            if field == "plate":
+                other = self.cars.find_by_plate(str(value))
+                if other and other.id != car_id:
+                    self.state.set_pending(user.id, pending)
+                    return Response.text(
+                        f"Номер уже записан за машиной {texts.esc(other.title)}. "
+                        "Пришлите другой или /cancel."
                     )
             if field == "year":
                 if not str(value).isdigit() or not 1950 <= int(str(value)) <= 2100:
@@ -201,6 +225,7 @@ class BotApp:
             self.state.set_pending(user.id, f"car:{field}:{car_id}")
             prompts = {
                 "vin": "Пришлите VIN (17 символов).",
+                "plate": "Пришлите госномер, например 123ABC01.",
                 "engine": "Пришлите двигатель, например 2AR-FE или 2.5.",
                 "year": "Пришлите год выпуска, например 2015.",
             }
@@ -284,13 +309,45 @@ class BotApp:
                 "Пришлите <b>артикул</b> или напишите по-другому, например: "
                 "<i>колодки передние</i>, <i>граната левая</i>."
             )
+        part_key, text_answers = recognition.part_key, recognition.answers
         car = self._current_car(user)
-        car_answers = self.cars.answers(car.id) if car else {}
-        state = clarify.start(recognition.part_key, recognition.answers, car, car_answers)
+
+        # Без каталога по VIN артикул по названию не подобрать. Не задаём
+        # уточнений впустую — сразу честно говорим и просим артикул.
+        if not self.catalog.is_available():
+            return Response(replies=[views.no_catalog_reply(part_key, text_answers, car)])
+
+        # Каталог подбирает по VIN — без него никак. Запомним деталь и попросим VIN.
+        if car is None or not car.vin:
+            state = clarify.ClarifyState(part_key=part_key, car_id=None, answers=text_answers)
+            session_id = self.sessions.create_clarify(user.id, state.to_dict())
+            self.state.set_pending(user.id, f"needvin:{session_id}")
+            return Response.text(views.ask_vin_text(part_key))
+
+        return await self._start_clarify(user, part_key, text_answers, car)
+
+    async def _start_clarify(
+        self, user: User, part_key: str, text_answers: dict[str, str], car: Car
+    ) -> Response:
+        """Уточняем только то, чего не знает каталог (сторона, ось…), одним сообщением."""
+        state = clarify.start(
+            part_key, text_answers, car, self.cars.answers(car.id), vin_known=bool(car.vin)
+        )
         if state.done:
             return await self._clarify_finish(user, state, car, edit=False)
         session_id = self.sessions.create_clarify(user.id, state.to_dict())
         return Response(replies=[views.clarify_reply(session_id, state, car)])
+
+    async def _continue_with_vin(self, user: User, session_id: int, car: Car) -> Response:
+        """Мастер прислал VIN после названия детали — продолжаем поиск этой детали."""
+        data = self.sessions.get_clarify(session_id)
+        card = self._car_card(user, car.id, prefix="✅ Машина выбрана по VIN.\n\n")
+        if data is None:
+            return card
+        state = clarify.ClarifyState.from_dict(data)
+        response = await self._start_clarify(user, state.part_key, state.answers, car)
+        response.replies = card.replies + response.replies
+        return response
 
     async def _clarify_answer(
         self, user: User, session_id: int, key: str, value: str, edit: bool
@@ -325,8 +382,8 @@ class BotApp:
                 for article in articles[:3]:
                     response.replies += (await self._search_article(user, article)).replies
                 return response
-        has_car_questions = any(QUESTIONS[k].scope == "car" for k in state.part.questions)
-        return Response(replies=[views.clarify_done_reply(state, car, has_car_questions, edit)])
+        # Каталог есть, но ничего не нашёл
+        return Response(replies=[views.catalog_not_found_reply(state, car, edit)])
 
     # --- Корзина ---
 
@@ -441,6 +498,26 @@ class BotApp:
         reply.text = prefix + reply.text
         return Response(replies=[reply])
 
+    def _select_car_by_vin(self, user: User, text: str) -> Car:
+        vin = normalize_vin(text)
+        car = self.cars.get_or_create_by_vin(vin, make_from_vin(vin) or "")
+        self.state.set_current_car(user.id, car.id)
+        log.info("car selected by VIN user=%s car=%s", user.id, car.id)
+        return car
+
+    def _select_vin(self, user: User, text: str) -> Response:
+        """Мастер прислал VIN: выбираем (или создаём) машину. Больше ничего не спрашиваем."""
+        car = self._select_car_by_vin(user, text)
+        response = self._car_card(user, car.id, prefix="✅ Машина выбрана по VIN.\n\n")
+        if not self.catalog.is_available():
+            response.replies[0].text += (
+                "\n\nℹ️ Каталог по VIN пока не подключён, поэтому деталь по названию "
+                "подобрать не смогу — присылайте артикул."
+            )
+        else:
+            response.replies[0].text += "\n\nТеперь напишите, какая деталь нужна."
+        return response
+
     async def _car_command(self, user: User, args: str) -> Response:
         if args.lower() in ("off", "нет", "отвязать", "-"):
             self.state.set_current_car(user.id, None)
@@ -451,7 +528,7 @@ class BotApp:
             recent = [c for c in self.cars.recent() if not car or c.id != car.id]
             buttons = [[Button(f"🚗 {c.title}", f"car:{c.id}")] for c in recent]
             head = f"Текущая машина: <b>{texts.esc(car.title)}</b>" if car else "Машина не выбрана."
-            text = f"{head}\n\nЧтобы выбрать или добавить: <code>/car Камри 123ABC01</code>" + (
+            text = f"{head}\n\nЧтобы выбрать машину — просто пришлите её VIN." + (
                 "\nИли нажмите на машину ниже:" if recent else ""
             )
             reply = Reply(text, buttons)
@@ -460,21 +537,19 @@ class BotApp:
                 return Response(replies=[card, reply])
             return Response(replies=[reply])
 
+        if is_vin(args):
+            return self._select_vin(user, args)
+
+        existing = self.cars.find(args)
+        if existing:
+            self.state.set_current_car(user.id, existing.id)
+            return self._car_card(user, existing.id)
+
+        # По госномеру (модель необязательна): /car 123ABC01 или /car Камри 123ABC01
         parsed = car_parsing.parse_car_args(args)
         if parsed is None:
-            # Может, указали только номер уже известной машины
-            existing = self.cars.find_by_plate(args)
-            if existing:
-                self.state.set_current_car(user.id, existing.id)
-                return self._car_card(user, existing.id)
-            return Response.text("Не понял номер. Пример: <code>/car Камри 123ABC01</code>")
+            return Response.text("Не понял. Пришлите VIN машины (17 символов) или госномер.")
         model, plate = parsed
-        existing = self.cars.find_by_plate(plate)
-        if existing is None and not model:
-            return Response.text(
-                f"Машины {texts.esc(plate)} ещё нет. Укажите модель: "
-                f"<code>/car Камри {texts.esc(plate)}</code>"
-            )
         car = self.cars.create_or_update(plate, model)
         self.state.set_current_car(user.id, car.id)
         log.info("car selected user=%s plate=%s", user.id, car.plate)
@@ -484,7 +559,7 @@ class BotApp:
 
     async def _orders_command(self, user: User, args: str) -> Response:
         if args:
-            car = self.cars.find_by_plate(args)
+            car = self.cars.find(args)
             if car is None:
                 return Response.text(f"Машины {texts.esc(args)} нет в базе.")
             orders = self.orders.for_car(car.id)

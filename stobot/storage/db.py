@@ -11,11 +11,12 @@ from pathlib import Path
 
 SCHEMA = """
 -- Машины клиентов
+-- Главное — VIN. Госномер и модель необязательны.
 CREATE TABLE IF NOT EXISTS cars (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    plate TEXT NOT NULL UNIQUE,          -- госномер без пробелов, заглавными
-    model TEXT NOT NULL DEFAULT '',
-    vin TEXT,
+    vin TEXT UNIQUE,                     -- 17 символов, заглавными
+    plate TEXT UNIQUE,                   -- госномер без пробелов, заглавными
+    model TEXT NOT NULL DEFAULT '',      -- марка/модель: «Toyota» (по VIN) или «Камри»
     engine TEXT,
     year INTEGER,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -102,7 +103,40 @@ def connect(db_path: Path | str) -> sqlite3.Connection:
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row  # строки как словари: row["plate"]
+    _migrate_cars(conn)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
     conn.commit()
     return conn
+
+
+def _migrate_cars(conn: sqlite3.Connection) -> None:
+    """Обновление старой базы: раньше госномер был обязательным, теперь нет.
+
+    SQLite не умеет менять ограничения столбца, поэтому таблицу пересоздаём
+    и переносим все машины. Делается один раз, при первом запуске новой версии.
+    """
+    columns = conn.execute("PRAGMA table_info(cars)").fetchall()
+    plate = next((c for c in columns if c["name"] == "plate"), None)
+    if plate is None or not plate["notnull"]:
+        return  # база новая или уже обновлена
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.executescript(
+        """
+        BEGIN;
+        CREATE TABLE cars_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vin TEXT UNIQUE,
+            plate TEXT UNIQUE,
+            model TEXT NOT NULL DEFAULT '',
+            engine TEXT,
+            year INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO cars_new (id, vin, plate, model, engine, year, created_at)
+            SELECT id, NULLIF(vin, ''), plate, model, engine, year, created_at FROM cars;
+        DROP TABLE cars;
+        ALTER TABLE cars_new RENAME TO cars;
+        COMMIT;
+        """
+    )
