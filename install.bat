@@ -6,6 +6,10 @@ echo.
 echo ===== Установка СТО-бота =====
 echo.
 
+rem --- 0. Путь к папке не должен быть длинным: у Windows лимит 260 символов ---
+set "HERE=%~dp0"
+if not "%HERE:~60,1%"=="" goto long_path
+
 rem --- 1. Ищем Python: сначала через py, потом python ---
 set "PY="
 py -3 --version >nul 2>nul
@@ -66,6 +70,14 @@ echo.
 pause
 notepad .env
 exit /b 0
+
+:long_path
+echo ОШИБКА: папка с ботом лежит слишком глубоко:
+echo %HERE%
+echo У Windows есть лимит на длину пути, и библиотеки не установятся.
+echo Скопируйте папку бота в C:\sto-bot и запустите install.bat оттуда.
+pause
+exit /b 1
 
 :no_python
 echo ОШИБКА: Python не найден.
