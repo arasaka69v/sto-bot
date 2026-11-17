@@ -320,7 +320,7 @@ def _part_summary(part_key: str, answers: dict[str, str]) -> str:
 
 
 def no_catalog_reply(part_key: str, answers: dict[str, str], car: Car | None) -> Reply:
-    """Каталога по VIN ещё нет: честно говорим и просим артикул. Ничего не спрашиваем."""
+    """Каталога по VIN ещё нет: просим артикул без лишних вопросов."""
     lines = [f"🔧 Понял: <b>{esc(_part_summary(part_key, answers))}</b>"]
     if car:
         lines.append(car_line(car))

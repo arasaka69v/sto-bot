@@ -4,7 +4,7 @@ import json
 import logging
 from types import SimpleNamespace
 
-from stobot.ai.claude import ClaudeRecognizer, _schema
+from stobot.ai.llm import AIRecognizer, _schema
 from stobot.logging_setup import SecretFilter
 from tests.conftest import run
 
@@ -15,7 +15,7 @@ def fake_response(data: dict, stop_reason: str = "end_turn"):
 
 
 def make_recognizer(response=None, error=None):
-    rec = ClaudeRecognizer(api_key="test-key", model="claude-opus-5-5")
+    rec = AIRecognizer(api_key="test-key", model="claude-opus-5-5")
     calls = []
 
     async def create(**kwargs):

@@ -317,7 +317,7 @@ class BotApp:
         car = self._current_car(user)
 
         # Без каталога по VIN артикул по названию не подобрать. Не задаём
-        # уточнений впустую — сразу честно говорим и просим артикул.
+        # уточнений впустую — сразу просим артикул.
         if not self.catalog.is_available():
             return Response(replies=[views.no_catalog_reply(part_key, text_answers, car)])
 

@@ -1,11 +1,11 @@
-"""Распознавание названий деталей через Claude (Anthropic API).
+"""Распознавание названий деталей через ИИ (Anthropic API).
 
 Включается, только если в .env указан ANTHROPIC_API_KEY.
 Сначала бот пробует словарь (быстро и бесплатно), и только если словарь
 не понял — спрашивает ИИ.
 
 ИИ может выбрать ТОЛЬКО тип детали из нашего справочника. Ответ ограничен
-JSON-схемой (structured outputs), поэтому придумать артикул ИИ не может физически.
+JSON-схемой (structured outputs), поэтому вернуть артикул ИИ не может.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ def _catalog_text() -> str:
     return "Типы деталей:\n" + "\n".join(lines)
 
 
-class ClaudeRecognizer(PartRecognizer):
+class AIRecognizer(PartRecognizer):
     def __init__(self, api_key: str, model: str):
         # Таймаут 20 с и 1 повтор: мастер не должен ждать минуту
         self.client = anthropic.AsyncAnthropic(api_key=api_key, timeout=20.0, max_retries=1)
