@@ -1,3 +1,49 @@
+# STO Bot — spare parts ordering for a car repair shop (Telegram)
+
+> 🇬🇧 English summary below. Full step-by-step docs are in Russian further down.
+
+A Telegram bot for a small car repair shop in Kazakhstan. Mechanics search for spare parts by part number or by plain name, add them to a shared cart, and an admin reviews the cart and confirms the order with the supplier.
+
+**Status:** working MVP. It runs on mock supplier data by default; the real supplier integration (Rossko SOAP API) is implemented and switches on once API keys are added.
+
+### Features
+- Search by part number, with analogues and a highlighted "best option" (cheapest in stock, delivered within N days)
+- Search by plain name: mechanics write slang and typos (e.g. "калодки перед" — misspelled "front brake pads") and the bot still recognises the part type
+- Car identified by VIN (make decoded from the WMI per ISO 3780); order history per car
+- Shared cart for all mechanics; only admins can place orders
+- Order safety: prices are re-checked before ordering, a cart changed after the check blocks the order, and a double "Confirm" tap can't create two orders
+- `TEST_MODE` — shows what would be sent to the supplier without placing a real order
+
+### How the AI part works
+Part names are recognised in two steps: a fast local dictionary first (free, no network), and only if it fails, a call to the Anthropic API. The model's output is constrained by a JSON schema, so it can only choose a part type from the shop's own list — it can never invent a part number. The AI is optional; without an API key the bot uses the dictionary alone.
+
+### Architecture
+- `stobot/core/` — business logic, independent of Telegram (returns text + buttons; the Telegram adapter renders them), so another messenger only needs a new adapter
+- `stobot/suppliers/` — supplier interface with `mock` and `rossko` (SOAP) implementations
+- `stobot/ai/` — dictionary and LLM recognisers behind one interface
+- `stobot/storage/` — SQLite (single file, no server)
+- Money is handled as `Decimal`, not `float`
+- 84 automated tests (`pytest`)
+
+### Tech stack
+Python 3.11+, python-telegram-bot, Anthropic API, SOAP (Rossko), SQLite, pytest
+
+### Quick start
+```bash
+git clone https://github.com/arasaka69v/sto-bot.git
+cd sto-bot
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env               # set TELEGRAM_BOT_TOKEN and ADMIN_IDS
+python main.py
+```
+On Windows you can just double-click `install.bat`, then `start.bat`.
+Run the tests: `pip install -r requirements-dev.txt && pytest`.
+Deploying to a Linux VPS with systemd is described in the section «Перенос на VPS».
+
+---
+
 # СТО-бот: заказ запчастей через Telegram
 
 Telegram-бот для автосервиса. Мастера ищут запчасти по артикулу или по названию
